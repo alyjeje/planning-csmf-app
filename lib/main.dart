@@ -14,9 +14,14 @@ void main() async {
   // Initialiser Firebase (commenté tant que pas configuré)
   // await Firebase.initializeApp();
   
-  // Initialiser les préférences
+  // Initialiser les préférences avec protection contre les erreurs
   final prefsService = PreferencesService();
-  await prefsService.init();
+  try {
+    await prefsService.init();
+  } catch (e) {
+    // Continuer même si les préférences ne s'initialisent pas
+    debugPrint('Failed to init preferences: $e');
+  }
   
   runApp(
     MultiProvider(

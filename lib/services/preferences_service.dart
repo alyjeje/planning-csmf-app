@@ -2,7 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PreferencesService extends ChangeNotifier {
-  late SharedPreferences _prefs;
+  SharedPreferences? _prefs;
+  bool _isInitialized = false;
   
   static const String _keySelectedSite = 'selected_site';
   static const String _keySubscribedActivities = 'subscribed_activities';
@@ -19,29 +20,42 @@ class PreferencesService extends ChangeNotifier {
   List<String> get subscribedActivities => _subscribedActivities;
   bool get notifyAll => _notifyAll;
   String? get fcmToken => _fcmToken;
+  bool get isInitialized => _isInitialized;
 
   Future<void> init() async {
-    _prefs = await SharedPreferences.getInstance();
-    _loadPreferences();
+    try {
+      _prefs = await SharedPreferences.getInstance();
+      _isInitialized = true;
+      _loadPreferences();
+    } catch (e) {
+      // Si SharedPreferences échoue (ex: iPadOS beta), continuer avec les valeurs par défaut
+      debugPrint('SharedPreferences init failed: $e');
+      _isInitialized = false;
+    }
   }
 
   void _loadPreferences() {
-    _selectedSite = _prefs.getString(_keySelectedSite) ?? 'Bercy';
-    _subscribedActivities = _prefs.getStringList(_keySubscribedActivities) ?? [];
-    _notifyAll = _prefs.getBool(_keyNotifyAll) ?? true;
-    _fcmToken = _prefs.getString(_keyFcmToken);
+    if (_prefs == null) return;
+    _selectedSite = _prefs!.getString(_keySelectedSite) ?? 'Bercy';
+    _subscribedActivities = _prefs!.getStringList(_keySubscribedActivities) ?? [];
+    _notifyAll = _prefs!.getBool(_keyNotifyAll) ?? true;
+    _fcmToken = _prefs!.getString(_keyFcmToken);
     notifyListeners();
   }
 
   Future<void> setSelectedSite(String site) async {
     _selectedSite = site;
-    await _prefs.setString(_keySelectedSite, site);
+    if (_prefs != null) {
+      await _prefs!.setString(_keySelectedSite, site);
+    }
     notifyListeners();
   }
 
   Future<void> setNotifyAll(bool value) async {
     _notifyAll = value;
-    await _prefs.setBool(_keyNotifyAll, value);
+    if (_prefs != null) {
+      await _prefs!.setBool(_keyNotifyAll, value);
+    }
     notifyListeners();
   }
 
@@ -51,13 +65,17 @@ class PreferencesService extends ChangeNotifier {
     } else {
       _subscribedActivities.add(activity);
     }
-    await _prefs.setStringList(_keySubscribedActivities, _subscribedActivities);
+    if (_prefs != null) {
+      await _prefs!.setStringList(_keySubscribedActivities, _subscribedActivities);
+    }
     notifyListeners();
   }
 
   Future<void> setSubscribedActivities(List<String> activities) async {
     _subscribedActivities = activities;
-    await _prefs.setStringList(_keySubscribedActivities, activities);
+    if (_prefs != null) {
+      await _prefs!.setStringList(_keySubscribedActivities, activities);
+    }
     notifyListeners();
   }
 
@@ -68,6 +86,8 @@ class PreferencesService extends ChangeNotifier {
 
   Future<void> setFcmToken(String token) async {
     _fcmToken = token;
-    await _prefs.setString(_keyFcmToken, token);
+    if (_prefs != null) {
+      await _prefs!.setString(_keyFcmToken, token);
+    }
   }
 }
