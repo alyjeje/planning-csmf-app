@@ -1,7 +1,7 @@
 name: planning_csmf
 description: Application de planning pour le CSMF Paris
 publish_to: 'none'
-version: 1.0.1+5
+version: 1.0.1+6
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -20,8 +20,9 @@ dependencies:
   # HTTP & API
   http: ^1.2.2
   
-  # Local storage
-  shared_preferences: ^2.5.4
+  # Local storage (Hive CE - pure Dart, évite le crash iOS natif)
+  hive_ce: ^2.9.0
+  hive_ce_flutter: ^2.2.0
   
   # Utils
   intl: ^0.20.2

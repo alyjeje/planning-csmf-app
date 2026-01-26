@@ -1,14 +1,16 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive_ce_flutter/hive_flutter.dart';
 
-/// Service de préférences utilisant shared_preferences
+/// Service de préférences utilisant Hive CE (pure Dart)
+/// Évite complètement le crash SharedPreferencesPlugin sur iPadOS 26.2
 class PreferencesService extends ChangeNotifier {
+  static const String _boxName = 'preferences';
   static const String _keySelectedSite = 'selected_site';
   static const String _keySubscribedActivities = 'subscribed_activities';
   static const String _keyNotifyAll = 'notify_all';
   static const String _keyFcmToken = 'fcm_token';
 
-  SharedPreferences? _prefs;
+  Box? _box;
   bool _isInitialized = false;
 
   String _selectedSite = 'Bercy';
@@ -25,31 +27,40 @@ class PreferencesService extends ChangeNotifier {
 
   Future<void> init() async {
     try {
-      _prefs = await SharedPreferences.getInstance();
+      // Initialiser Hive pour Flutter
+      await Hive.initFlutter();
+      
+      // Ouvrir la box de préférences
+      _box = await Hive.openBox(_boxName);
       
       // Charger les valeurs sauvegardées
-      _selectedSite = _prefs?.getString(_keySelectedSite) ?? 'Bercy';
-      _subscribedActivities = _prefs?.getStringList(_keySubscribedActivities) ?? [];
-      _notifyAll = _prefs?.getBool(_keyNotifyAll) ?? true;
-      _fcmToken = _prefs?.getString(_keyFcmToken);
+      _selectedSite = _box?.get(_keySelectedSite, defaultValue: 'Bercy') ?? 'Bercy';
+      
+      final savedActivities = _box?.get(_keySubscribedActivities);
+      if (savedActivities != null && savedActivities is List) {
+        _subscribedActivities = List<String>.from(savedActivities);
+      }
+      
+      _notifyAll = _box?.get(_keyNotifyAll, defaultValue: true) ?? true;
+      _fcmToken = _box?.get(_keyFcmToken);
       
       _isInitialized = true;
-      debugPrint('PreferencesService initialized successfully');
+      debugPrint('PreferencesService initialized with Hive CE');
     } catch (e) {
-      debugPrint('Failed to init preferences: $e');
+      debugPrint('Failed to init Hive preferences: $e');
       _isInitialized = false;
     }
   }
 
   Future<void> setSelectedSite(String site) async {
     _selectedSite = site;
-    await _prefs?.setString(_keySelectedSite, site);
+    await _box?.put(_keySelectedSite, site);
     notifyListeners();
   }
 
   Future<void> setNotifyAll(bool value) async {
     _notifyAll = value;
-    await _prefs?.setBool(_keyNotifyAll, value);
+    await _box?.put(_keyNotifyAll, value);
     notifyListeners();
   }
 
@@ -59,13 +70,13 @@ class PreferencesService extends ChangeNotifier {
     } else {
       _subscribedActivities.add(activity);
     }
-    await _prefs?.setStringList(_keySubscribedActivities, _subscribedActivities);
+    await _box?.put(_keySubscribedActivities, _subscribedActivities);
     notifyListeners();
   }
 
   Future<void> setSubscribedActivities(List<String> activities) async {
     _subscribedActivities = List<String>.from(activities);
-    await _prefs?.setStringList(_keySubscribedActivities, _subscribedActivities);
+    await _box?.put(_keySubscribedActivities, _subscribedActivities);
     notifyListeners();
   }
 
@@ -76,6 +87,10 @@ class PreferencesService extends ChangeNotifier {
 
   Future<void> setFcmToken(String token) async {
     _fcmToken = token;
-    await _prefs?.setString(_keyFcmToken, token);
+    await _box?.put(_keyFcmToken, token);
+  }
+
+  Future<void> close() async {
+    await _box?.close();
   }
 }
